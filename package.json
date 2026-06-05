@@ -1,0 +1,30 @@
+{
+    "name": "employee_payroll",
+    "version": "1.0.0",
+    "description": "",
+    "main": "src/main.js",
+    "scripts": {
+        "dev": "node --watch --env-file=.env src/main.js",
+        "start": "node --env-file=.env src/main.js",
+        "test": "echo \"Error: no test specified\" && exit 1"
+    },
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/AbubakrRehman/employee_payroll.git"
+    },
+    "keywords": [],
+    "author": "",
+    "license": "ISC",
+    "type": "module",
+    "bugs": {
+        "url": "https://github.com/AbubakrRehman/employee_payroll/issues"
+    },
+    "homepage": "https://github.com/AbubakrRehman/employee_payroll#readme",
+    "dependencies": {
+        "@prisma/client": "^7.8.0",
+        "express": "^5.2.1"
+    },
+    "devDependencies": {
+        "prisma": "^7.8.0"
+    }
+}

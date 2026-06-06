@@ -1,4 +1,4 @@
-// const UserRepository = require('../repositories/user.repository');
+import  EmployeeRepository from "../repositories/employee.repository.js";
 
 class EmployeeService {
   static async getEmployees() {
@@ -8,7 +8,8 @@ class EmployeeService {
     // }
     // return user;
 
-    return "this is employees list rersponse"
+    // return "this is employees list rersponse"
+    return await EmployeeRepository.findAll();
   }
 }
 

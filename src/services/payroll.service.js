@@ -1,36 +1,38 @@
-// const UserRepository = require('../repositories/user.repository');
+import PayrollRepository from "../repositories/payroll.repository.js";
+import NotFoundError from "../utils/NotFoundError.js";
 
 class PayrollService {
-  static async getEmployeePaySlip(runId, employeeId) {
-    // const user = await UserRepository.findById(id);
-    // if (!user) {
-    //   throw new Error('User not found'); 
-    // }
-    // return user;
+  
+  static async fetchPayslip(runId, employeeId) {
+    const payslip = await PayrollRepository.getPayslip(runId, employeeId);
 
-    return "this is getEmployeePaySlip rersponse"
+    if (!payslip)
+      throw new NotFoundError('Payslip not found for this employee in the specified run')
+
+    return payslip;
   }
 
-  static async getPayrollForPeriod(month, year) {
-    // const user = await UserRepository.findById(id);
-    // if (!user) {
-    //   throw new Error('User not found'); 
-    // }
-    // return user;
+  static async fetchPayroll(month, year) {
+    const payroll = await PayrollRepository.getPayrollRun(month, year);
 
-    return "this is getPayrollForPeriod rersponse"
+    if (!payroll)
+      throw new NotFoundError('Payroll run not found for the specified period');
+
+    return payroll;
   }
 
-   static async runPayroll() {
-    // const user = await UserRepository.findById(id);
-    // if (!user) {
-    //   throw new Error('User not found'); 
-    // }
-    // return user;
-
-    return "this is payroll run rersponse"
+  static async processPayroll(month, year) {
+    try {
+      const runId = await PayrollRepository.executePayrollRun(month, year);
+      return { success: true, runId };
+    } catch (error) {
+      // Check for the custom PostgreSQL error code we set (P0001)
+      if (error.message === 'DUPLICATE_PAYROLL_RUN') {
+        throw new AppError(409, 'Payroll already exists')
+      }
+      throw error;
+    }
   }
 }
 
-// module.exports = new EmployeeService();
 export default PayrollService

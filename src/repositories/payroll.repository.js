@@ -8,7 +8,7 @@ export default class PayrollRepository {
     static async executePayrollRun(month, year) {
         // 1. Pre-check for duplicate (Safety first)
         const existingRun = await prisma.payrollRun.findFirst({
-            where: { month, year }
+            where: { year, month }
         });
 
         if (existingRun)
@@ -20,7 +20,7 @@ export default class PayrollRepository {
 
         // 3. Fetch the ID of the run we just created
         const newRun = await prisma.payrollRun.findFirst({
-            where: { month, year },
+            where: { year, month },
             select: { id: true }
         });
 
@@ -31,7 +31,7 @@ export default class PayrollRepository {
     static async getPayrollRun(month, year) {
         return await prisma.payrollRun.findUnique({
             where: {
-                month_year: { month, year }, // Matches your @@unique([month, year])
+                year_month: { year, month }, // Matches your @@unique([month, year])
             },
             select: {
                 id: true,

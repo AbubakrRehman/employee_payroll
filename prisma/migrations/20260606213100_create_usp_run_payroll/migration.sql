@@ -24,7 +24,7 @@ BEGIN
             COALESCE(a."daysPresent", 0) AS "daysPresent",
             COALESCE(CAST(a."daysPresent" AS NUMERIC(10,4)) / NULLIF(CAST(a."totalWorkingDays" AS NUMERIC(10,4)), 0), 0) AS "ratio"
         FROM "Employee" e
-        LEFT JOIN "Attendance" a ON e."id" = a."employeeId" AND a."month" = p_month AND a."year" = p_year
+        LEFT JOIN "Attendance" a ON e."id" = a."employeeId" AND a."year" = p_year AND a."month" = p_month 
         WHERE e."isActive" = true
     )
     SELECT 

@@ -1,95 +1,130 @@
-import { coreDepartments, mockEmployees } from './seedData.js';
-import {prisma} from "../src/config/db.js"
+import { departmentRecords, employeeRecords, attendanceRecords, payrollRunRecords, payrollDetailRecords } from './seedData.js';
+import { prisma } from "../src/config/db.js"
 
 async function main() {
-  const isProduction = process.env.NODE_ENV === 'production';
-  console.log(`🌱 Running seed script in [${process.env.NODE_ENV || 'development'}] mode...`);
 
-  // 1. Seed Core Departments
-  console.log('🏢 Upserting core departments...');
-  for (const dept of coreDepartments) {
-    await prisma.department.upsert({
-      where: { id: dept.id },
-      update: { name: dept.name },
-      create: { id: dept.id, name: dept.name },
-    });
-  }
-
-  // 2. Production Guard
-  if (isProduction) {
-    console.log('⚠️ Production detected. Skipping mock operational records.');
-    console.log('✅ Production seeding completed successfully.');
-    return;
-  }
-
-  // 3. Seed Mock Employees
-  console.log('👥 Seeding 25 mock employees...');
-  for (const emp of mockEmployees) {
-    await prisma.employee.upsert({
-      where: { id: emp.id },
-      update: { name: emp.name, basicSalary: emp.basicSalary, departmentId: emp.departmentId },
-      create: {
-        id: emp.id,
-        name: emp.name,
-        basicSalary: emp.basicSalary,
-        departmentId: emp.departmentId,
-        isActive: true,
-      },
-    });
-  }
-
-  // 4. Seed Multi-Month Attendance Matrix
-  console.log('📅 Seeding multi-month attendance matrix...');
-  for (const emp of mockEmployees) {
-    // Standard variations
-    let mayDaysPresent = Math.floor(Math.random() * (21 - 17 + 1)) + 17;
-    let juneDaysPresent = Math.floor(Math.random() * (22 - 18 + 1)) + 18;
-
-    // Hard override rules for targeted absence testing (Employees 10 and 15)
-    if (emp.id === 10 || emp.id === 15) {
-      mayDaysPresent = 0;
-      juneDaysPresent = 0;
+    console.log('Upserting Departments...');
+    for (const dept of departmentRecords) {
+        await prisma.department.upsert({
+            where: { id: dept.id },
+            update: { name: dept.name },
+            create: dept,
+        });
     }
 
-    // May 2026 Cycle
-    await prisma.attendance.upsert({
-      where: {
-        employeeId_month_year: { employeeId: emp.id, month: 5, year: 2026 },
-      },
-      update: { totalWorkingDays: 21, daysPresent: mayDaysPresent },
-      create: {
-        employeeId: emp.id,
-        month: 5,
-        year: 2026,
-        totalWorkingDays: 21,
-        daysPresent: mayDaysPresent,
-      },
-    });
+    console.log('Upserting Employees...');
+    for (const emp of employeeRecords) {
+        await prisma.employee.upsert({
+            where: { id: emp.id },
+            update: {
+                name: emp.name,
+                basicSalary: emp.basicSalary,
+                isActive: emp.isActive,
+                departmentId: emp.departmentId,
+            },
+            create: emp,
+        });
+    }
 
-    // June 2026 Cycle
-    await prisma.attendance.upsert({
-      where: {
-        employeeId_month_year: { employeeId: emp.id, month: 6, year: 2026 },
-      },
-      update: { totalWorkingDays: 22, daysPresent: juneDaysPresent },
-      create: {
-        employeeId: emp.id,
-        month: 6,
-        year: 2026,
-        totalWorkingDays: 22,
-        daysPresent: juneDaysPresent,
-      },
-    });
-  }
+    console.log('Upserting Attendance Records...');
+    for (const att of attendanceRecords) {
+        await prisma.attendance.upsert({
+            // Uses the @@unique([employeeId, year, month]) composite index
+            where: {
+                employeeId_year_month: {
+                    employeeId: att.employeeId,
+                    year: att.year,
+                    month: att.month,
+                },
+            },
+            update: {
+                totalWorkingDays: att.totalWorkingDays,
+                daysPresent: att.daysPresent,
+            },
+            create: att,
+        });
+    }
 
-  console.log('✅ Success! Core lookups and clean workforce data synchronized.');
+    console.log('Upserting Payroll Runs...');
+    for (const run of payrollRunRecords) {
+        await prisma.payrollRun.upsert({
+            where: { id: run.id },
+            update: {
+                month: run.month,
+                year: run.year,
+                runDate: run.runDate,
+            },
+            create: run,
+        });
+    }
+
+    console.log('Upserting Payroll Details...');
+    for (const det of payrollDetailRecords) {
+        await prisma.payrollDetail.upsert({
+            // Uses the @@unique([payrollRunId, employeeId]) composite index
+            where: {
+                payrollRunId_employeeId: {
+                    payrollRunId: det.payrollRunId,
+                    employeeId: det.employeeId,
+                },
+            },
+            update: {
+                basicSalary: det.basicSalary,
+                workingDays: det.workingDays,
+                daysPresent: det.daysPresent,
+                grossPay: det.grossPay,
+                pfDeduction: det.pfDeduction,
+                professionalTax: det.professionalTax,
+                netPay: det.netPay,
+            },
+            create: det,
+        });
+    }
+
+    console.log('Syncing PostgreSQL ID sequences...');
+
+    // Only list tables that have an auto-incrementing "id" column
+    //   const tablesWithId = ['Department', 'Employee', 'PayrollRun', 'PayrollDetail']; 
+
+    //   for (const tableName of tablesWithId) {
+    //     // This query is safer: it checks if the sequence exists before trying to set it
+    //     await prisma.$executeRawUnsafe(`
+    //       DO $$
+    //       BEGIN
+    //         IF EXISTS (SELECT 1 FROM pg_class WHERE relname = '${tableName.toLowerCase()}_id_seq') THEN
+    //           EXECUTE 'SELECT setval(pg_get_serial_sequence(''${tableName}'', ''id''), COALESCE(MAX(id), 0) + 1, false) FROM "${tableName}"';
+    //         END IF;
+    //       END $$;
+    //     `);
+    //   }
+
+    const tables = [
+        { name: 'Department', pk: 'id' },
+        { name: 'Employee', pk: 'id' },
+        { name: 'Attendance', pk: 'id' },
+        { name: 'PayrollRun', pk: 'id' },
+        { name: 'PayrollDetail', pk: 'payrollDetailId' } // Corrected Primary Key name
+    ];
+
+    for (const table of tables) {
+        await prisma.$executeRawUnsafe(`
+      SELECT setval(
+        pg_get_serial_sequence('"${table.name}"', '${table.pk}'), 
+        COALESCE((SELECT MAX("${table.pk}") FROM "${table.name}"), 0) + 1, 
+        false
+      );
+    `);
+    }
+
+
+    console.log('Database successfully seeded via Upsert operations.');
 }
 
 main()
-  .catch((e) => {
-    console.error('❌ Seed script execution failed:', e);
-    process.exit(1);
-  })
-  .finally(async () => {
-    await prisma.$disconnect();
-  });
+    .catch((e) => {
+        console.error('❌ Seed script execution failed:', e);
+        process.exit(1);
+    })
+    .finally(async () => {
+        await prisma.$disconnect();
+    });

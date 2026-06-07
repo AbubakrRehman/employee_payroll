@@ -6,24 +6,17 @@ CREATE OR REPLACE PROCEDURE "usp_RunPayroll"(
 LANGUAGE plpgsql
 AS $$
 BEGIN
-    -- 1. Prevent duplicate payroll runs for the same period
-    IF EXISTS (SELECT 1 FROM "PayrollRun" WHERE "month" = p_month AND "year" = p_year) THEN
-        RAISE EXCEPTION 'A payroll run for this month and year has already been finalized.' 
-        USING ERRCODE = 'P0001';
-    END IF;
-
-    -- 2. Create the Master Payroll Run Record
+    -- 1. Create the Master Payroll Run Record (Validation is now handled by Node.js)
     INSERT INTO "PayrollRun" ("month", "year", "runDate")
     VALUES (p_month, p_year, CURRENT_TIMESTAMP)
     RETURNING "id" INTO p_new_run_id;
 
-    -- 3. Calculate and Save Individual Payslips
+    -- 2. Calculate and Save Individual Payslips
     INSERT INTO "PayrollDetail" (
         "payrollRunId", "employeeId", "basicSalary", "workingDays", "daysPresent", 
         "grossPay", "pfDeduction", "professionalTax", "netPay"
     )
     WITH SalaryCalc AS (
-        -- Calculate the work ratio once for the entire query
         SELECT 
             e."id" AS "employeeId",
             e."basicSalary",
@@ -40,14 +33,10 @@ BEGIN
         "basicSalary",
         "workingDays",
         "daysPresent",
-        -- Pro-rated Earnings
-        CAST("basicSalary" * "ratio" AS NUMERIC(10,2)) AS "grossPay",
-        -- Pro-rated PF Deduction (12%)
-        CAST(("basicSalary" * 0.12) * "ratio" AS NUMERIC(10,2)) AS "pfDeduction",
-        -- Pro-rated Tax
-        CAST(200.00 * "ratio" AS NUMERIC(10,2)) AS "professionalTax",
-        -- Factored Net Pay: ((Basic * 0.88) - 200) * Ratio
-        CAST((("basicSalary" * 0.88) - 200.00) * "ratio" AS NUMERIC(10,2)) AS "netPay"
+        CAST("basicSalary" * "ratio" AS NUMERIC(10,2)),
+        CAST(("basicSalary" * 0.12) * "ratio" AS NUMERIC(10,2)),
+        CAST(200.00 * "ratio" AS NUMERIC(10,2)),
+        CAST((("basicSalary" * 0.88) - 200.00) * "ratio" AS NUMERIC(10,2))
     FROM SalaryCalc;
 END;
 $$;

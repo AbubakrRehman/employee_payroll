@@ -1,4 +1,5 @@
 import PayrollRepository from "../repositories/payroll.repository.js";
+import AppError from "../utils/AppError.js";
 import NotFoundError from "../utils/NotFoundError.js";
 
 class PayrollService {

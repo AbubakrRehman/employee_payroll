@@ -6,18 +6,25 @@ export default class PayrollRepository {
      */
 
     static async executePayrollRun(month, year) {
-        // The raw SQL call defined in our previous step
-        try {
-            const result = await prisma.$queryRaw`CALL "usp_RunPayroll"(${month}, ${year}, null);`;
-            return result[0].p_new_run_id;
-        } catch (error) {
-            // If the error code is our custom 'P0001', throw it up
-            if (error.code === 'P0001') {
-                throw new Error('DUPLICATE_PAYROLL_RUN'); // Throw a standard ENUM-like string
+        // 1. Pre-check for duplicate (Safety first)
+        const existingRun = await prisma.payrollRun.findFirst({
+            where: { month, year }
+        });
 
-            }
-            throw error; // Let other errors bubble up as-is
-        }
+        if (existingRun)
+            throw new Error('DUPLICATE_PAYROLL_RUN');
+
+        // 2. Execute the procedure
+        // Use $executeRaw because Procedures do not return results directly
+        await prisma.$executeRaw`CALL "usp_RunPayroll"(${month}, ${year}, null);`;
+
+        // 3. Fetch the ID of the run we just created
+        const newRun = await prisma.payrollRun.findFirst({
+            where: { month, year },
+            select: { id: true }
+        });
+
+        return newRun.id;
     }
 
 

@@ -27,11 +27,20 @@ export const getEmployeePayslipSchema = z.object({
 
 // 3. Schema for: POST /api/payroll (Example of validating a request body)
 export const createPayrollSchema = z.object({
-  body: z.object({
-    month: z.number().int().min(1).max(12),
-    // Allows any year from 2020 up to next year
-    year: z.number().int().min(2020).max(2100) 
-  })
+    body: z.object({
+        month: z.number().int().min(1).max(12),
+        year: z.number().int().min(2020).max(2100)
+    }).refine((data) => {
+        const now = new Date();
+        const currentMonth = now.getMonth() + 1;
+        const currentYear = now.getFullYear();
+
+        // Return false if date is in the future
+        return !(data.year > currentYear || (data.year === currentYear && data.month > currentMonth));
+    }, {
+        message: "Cannot run payroll for a future month or year",
+        path: ["month"] // Points the error to the month field
+    })
 });
 
 

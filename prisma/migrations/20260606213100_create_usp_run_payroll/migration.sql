@@ -6,9 +6,8 @@ CREATE OR REPLACE PROCEDURE "usp_RunPayroll"(
 LANGUAGE plpgsql
 AS $$
 BEGIN
-    -- 1. Immutability & Conflict Check
-    -- Checking against "PayrollRun" table using camelCase "month" and "year"
-    IF EXISTS (SELECT 1 FROM "PayrollRun" WHERE "year" = p_year AND "month" = p_month) THEN
+    -- 1. Prevent duplicate payroll runs for the same period
+    IF EXISTS (SELECT 1 FROM "PayrollRun" WHERE "month" = p_month AND "year" = p_year) THEN
         RAISE EXCEPTION 'A payroll run for this month and year has already been finalized.' 
         USING ERRCODE = 'P0001';
     END IF;
@@ -19,45 +18,36 @@ BEGIN
     RETURNING "id" INTO p_new_run_id;
 
     -- 3. Calculate and Save Individual Payslips
-    -- Matching your schema fields exactly: employeeId, basicSalary, totalWorkingDays, daysPresent
     INSERT INTO "PayrollDetail" (
         "payrollRunId", "employeeId", "basicSalary", "workingDays", "daysPresent", 
         "grossPay", "pfDeduction", "professionalTax", "netPay"
     )
+    WITH SalaryCalc AS (
+        -- Calculate the work ratio once for the entire query
+        SELECT 
+            e."id" AS "employeeId",
+            e."basicSalary",
+            COALESCE(a."totalWorkingDays", 0) AS "workingDays",
+            COALESCE(a."daysPresent", 0) AS "daysPresent",
+            COALESCE(CAST(a."daysPresent" AS NUMERIC(10,4)) / NULLIF(CAST(a."totalWorkingDays" AS NUMERIC(10,4)), 0), 0) AS "ratio"
+        FROM "Employee" e
+        LEFT JOIN "Attendance" a ON e."id" = a."employeeId" AND a."month" = p_month AND a."year" = p_year
+        WHERE e."isActive" = true
+    )
     SELECT 
         p_new_run_id,
-        e."id",
-        e."basicSalary",
-        COALESCE(a."totalWorkingDays", 0),
-        COALESCE(a."daysPresent", 0),
-        
-        -- Gross Pay
-        CAST(
-            COALESCE(
-                (e."basicSalary" / NULLIF(CAST(a."totalWorkingDays" AS NUMERIC(10,2)), 0)) * a."daysPresent", 
-                0
-            ) AS NUMERIC(10,2)
-        ),
-        
-        -- PF Deduction (12% of basicSalary)
-        CAST(e."basicSalary" * 0.12 AS NUMERIC(10,2)),
-        
-        -- Professional Tax
-        200.00,
-        
-        -- Net Pay
-        CAST(
-            COALESCE(
-                (e."basicSalary" / NULLIF(CAST(a."totalWorkingDays" AS NUMERIC(10,2)), 0)) * a."daysPresent", 
-                0
-            ) - (e."basicSalary" * 0.12) - 200.00 
-        AS NUMERIC(10,2))
-
-    FROM "Employee" e
-    LEFT JOIN "Attendance" a ON e."id" = a."employeeId" 
-                             AND a."month" = p_month 
-                             AND a."year" = p_year
-    WHERE e."isActive" = true;
-
+        "employeeId",
+        "basicSalary",
+        "workingDays",
+        "daysPresent",
+        -- Pro-rated Earnings
+        CAST("basicSalary" * "ratio" AS NUMERIC(10,2)) AS "grossPay",
+        -- Pro-rated PF Deduction (12%)
+        CAST(("basicSalary" * 0.12) * "ratio" AS NUMERIC(10,2)) AS "pfDeduction",
+        -- Pro-rated Tax
+        CAST(200.00 * "ratio" AS NUMERIC(10,2)) AS "professionalTax",
+        -- Factored Net Pay: ((Basic * 0.88) - 200) * Ratio
+        CAST((("basicSalary" * 0.88) - 200.00) * "ratio" AS NUMERIC(10,2)) AS "netPay"
+    FROM SalaryCalc;
 END;
 $$;

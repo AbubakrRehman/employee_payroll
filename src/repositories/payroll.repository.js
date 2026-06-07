@@ -7,7 +7,6 @@ export default class PayrollRepository {
 
     static async executePayrollRun(month, year) {
         // The raw SQL call defined in our previous step
-        console.log("repo", month, year)
         try {
             const result = await prisma.$queryRaw`CALL "usp_RunPayroll"(${month}, ${year}, null);`;
             return result[0].p_new_run_id;

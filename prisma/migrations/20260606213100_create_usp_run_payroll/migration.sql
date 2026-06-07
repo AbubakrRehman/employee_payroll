@@ -8,7 +8,7 @@ AS $$
 BEGIN
     -- 1. Immutability & Conflict Check
     -- Checking against "PayrollRun" table using camelCase "month" and "year"
-    IF EXISTS (SELECT 1 FROM "PayrollRun" WHERE "month" = p_month AND "year" = p_year) THEN
+    IF EXISTS (SELECT 1 FROM "PayrollRun" WHERE "year" = p_year AND "month" = p_month) THEN
         RAISE EXCEPTION 'A payroll run for this month and year has already been finalized.' 
         USING ERRCODE = 'P0001';
     END IF;

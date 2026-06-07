@@ -19,64 +19,64 @@ model Department {
 }
 
 model Employee {
-  id           Int          @id @default(autoincrement())
-  name         String
-  basicSalary  Decimal      @db.Decimal(10, 2)
-  isActive     Boolean      @default(true)
-  departmentId Int
+  id             Int             @id @default(autoincrement())
+  name           String
+  basicSalary    Decimal         @db.Decimal(10, 2)
+  isActive       Boolean         @default(true)
+  departmentId   Int
   // Defines the foreign key relationship
-  department   Department   @relation(fields: [departmentId], references: [id])
-  attendance   Attendance[]
+  department     Department      @relation(fields: [departmentId], references: [id])
+  attendance     Attendance[]
   payRollDetails PayrollDetail[]
+
+  @@index([departmentId])
 }
 
 model Attendance {
   id               Int @id @default(autoincrement())
-  month            Int
-  year             Int
-  totalWorkingDays Int
-  daysPresent      Int
+  month            Int @db.SmallInt
+  year             Int @db.SmallInt
+  totalWorkingDays Int @db.SmallInt
+  daysPresent      Int @db.SmallInt
 
   // Foreign Key setup
   employeeId Int
   employee   Employee @relation(fields: [employeeId], references: [id])
 
   // Recommended: Prevents duplicate attendance records for the same employee in a given month
-  @@unique([employeeId, month, year])
+  @@unique([employeeId, year, month])
 }
 
-
 model PayrollRun {
-  id Int      @id @default(autoincrement())
-  month        Int
-  year         Int
-  runDate      DateTime @default(now())
+  id      Int      @id @default(autoincrement())
+  month   Int      @db.SmallInt
+  year    Int      @db.SmallInt
+  runDate DateTime @default(now())
 
   // Critical for the Bonus Feature: Prevents duplicate runs for the same period
   payrollDetails PayrollDetail[]
-  @@unique([month, year])
+  @@unique([year, month])
 }
 
-
 model PayrollDetail {
-  payrollDetailId Int     @id @default(autoincrement())
-  
+  payrollDetailId Int @id @default(autoincrement())
+
   // Snapshot Data (Enforces Immutability)
   basicSalary     Decimal @db.Decimal(10, 2)
-  workingDays     Int
-  daysPresent     Int
+  workingDays     Int     @db.SmallInt
+  daysPresent     Int     @db.SmallInt
   grossPay        Decimal @db.Decimal(10, 2)
   pfDeduction     Decimal @db.Decimal(10, 2)
   professionalTax Decimal @db.Decimal(10, 2)
   netPay          Decimal @db.Decimal(10, 2)
 
   // Foreign Key setup for PayrollRun
-  payrollRunId    Int
-  payrollRun      PayrollRun @relation(fields: [payrollRunId], references: [id])
+  payrollRunId Int
+  payrollRun   PayrollRun @relation(fields: [payrollRunId], references: [id])
 
   // Foreign Key setup for Employee
-  employeeId      Int
-  employee        Employee   @relation(fields: [employeeId], references: [id])
+  employeeId Int
+  employee   Employee @relation(fields: [employeeId], references: [id])
 
   // Prevents generating multiple payslips for the same employee in a single run
   @@unique([payrollRunId, employeeId])

@@ -6,12 +6,18 @@ export default class EmployeeRepository {
    */
   static async findAll() {
     return await prisma.employee.findMany({
-      include: {
-        department: true,
-      },
-      orderBy: {
-        id: 'asc',
-      },
+      select: {
+        id: true,
+        name: true,
+        basicSalary: true,
+        isActive: true,
+        department: {
+          select: {
+            id: true,
+            name: true // Only return the department name, not the whole object
+          }
+        }
+      }
     });
   }
 }

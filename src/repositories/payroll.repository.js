@@ -21,12 +21,11 @@ export default class PayrollRepository {
         // 3. Fetch the ID of the run we just created
         const newRun = await prisma.payrollRun.findFirst({
             where: { year, month },
-            select: { id: true }
+            select: { id: true, month : true, year : true, runDate : true}
         });
 
-        return newRun.id;
+        return newRun;
     }
-
 
     static async getPayrollRun(month, year) {
         return await prisma.payrollRun.findUnique({

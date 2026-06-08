@@ -36,7 +36,8 @@ services:
       db:
         condition: service_healthy # Wait for the db healthcheck to pass before starting
     # Chains execution: run migrations -> run seeds -> start application server
-    command: sh -c "npm run db:migrate && npm run db:seed && npm start"
+    # command: sh -c "npm run db:migrate && npm run db:seed && npm start"
+    command: sh -c "npx prisma generate && npm run db:migrate && npm run db:seed && npm start"
 
 volumes:
   dev_db_data:

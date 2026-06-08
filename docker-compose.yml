@@ -1,6 +1,7 @@
 version: '3.8'
 
 services:
+  # --- PostgreSQL Container ---
   db:
     image: postgres:15-alpine
     container_name: employee_payroll_db
@@ -10,9 +11,32 @@ services:
       POSTGRES_PASSWORD: dev_password
       POSTGRES_DB: employee_payroll
     ports:
-      - "5433:5432" # Exposes the DB to your local machine
+      - "5433:5432" # Maps external port 5433 to internal port 5432
     volumes:
       - dev_db_data:/var/lib/postgresql/data
+    # Native health check to verify PostgreSQL is actively accepting queries
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U dev_user -d employee_payroll"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # --- Node.js Container ---
+  web:
+    build: . # Compiles the Dockerfile located in the current folder
+    container_name: node_app
+    restart: always
+    ports:
+      - "3000:3000" # Exposes your application port to your host machine
+    environment:
+      - NODE_ENV=development
+      # Use 'db' (the service name) as the hostname instead of localhost
+      - DATABASE_URL=postgres://dev_user:dev_password@db:5432/employee_payroll
+    depends_on:
+      db:
+        condition: service_healthy # Wait for the db healthcheck to pass before starting
+    # Chains execution: run migrations -> run seeds -> start application server
+    command: sh -c "npm run db:migrate && npm run db:seed && npm start"
 
 volumes:
   dev_db_data:

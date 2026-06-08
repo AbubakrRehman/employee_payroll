@@ -5,7 +5,7 @@ class AppError extends Error {
     this.success = false;
 
     // Captures the stack trace, keeping our constructor out of it
-    Error.captureStackTrace(this, this.constructor);
+    // Error.captureStackTrace(this, this.constructor);
   }
 }
 

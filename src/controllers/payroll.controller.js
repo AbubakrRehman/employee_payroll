@@ -19,7 +19,8 @@ class PayrollController {
     }
 
     static async runPayroll(req, res, next) {
-        const { year, month } = req.body;
+         const year = parseInt(req.body.year);
+        const month = parseInt(req.body.month);
         const attendanceCount = await AttendanceService.getAttendanceCount(year, month);
         if (attendanceCount === 0) {
             throw new NotFoundError(`Cannot process payroll: No attendance records found for ${month}/${year}.`)

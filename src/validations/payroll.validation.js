@@ -20,8 +20,8 @@ export const getPayrollByPeriodSchema = z.object({
 // 2. Schema for: GET /api/payroll/:runId/slip/:employeeId
 export const getEmployeePayslipSchema = z.object({
     params: z.object({
-        runId: z.string(), // Assumes UUIDs for database IDs
-        employeeId: z.string().min(1, "Employee ID is required")
+        runId: z.coerce.number().int().positive(),
+        employeeId: z.coerce.number().int().positive()
     })
 });
 
@@ -29,8 +29,7 @@ export const getEmployeePayslipSchema = z.object({
 export const createPayrollSchema = z.object({
     body: z.object({
         month: z.number().int().min(1).max(12),
-        year: z.number().int().min(2020).max(2100)
+        year: z.number().int().min(1900).max(2100)
     })
 });
-
 
